@@ -103,12 +103,12 @@
     </div>
 
     <!-- Script to Handle Simulation / Interaction -->
-    <script>
+<script>
         const form = document.getElementById('goal-form');
         const input = document.getElementById('user-goal');
         const container = document.getElementById('chat-container');
 
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
             const goalText = input.value.trim();
             if (!goalText) return;
@@ -117,23 +117,37 @@
             appendMessage('user', 'User Goal', goalText);
             input.value = '';
 
-            // Simulate Agent ReAct Sequence
-            setTimeout(() => {
-                appendLog('--- Iteration 1 ---', 'text-indigo-400 font-mono text-xs');
-            }, 500);
+            // Loading / Thinking indicator
+            const loadingId = 'loading-' + Date.now();
+            appendLog('Agent is thinking and executing tool loop...', 'text-indigo-400 font-mono text-xs', loadingId);
 
-            setTimeout(() => {
-                appendLog('[Action] Calling tool \'calculate_metrics\' with args: { "data_points": "' + goalText + '" }', 'text-amber-400 font-mono text-xs');
-            }, 1200);
+            try {
+                // Call your FastAPI backend endpoint
+                const response = await fetch('http://127.0.0.1:8000/run-agent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ goal: goalText })
+                });
 
-            setTimeout(() => {
-                // Parse mock numbers if present or give generic calculation
-                appendLog('[Observation] Count: 5, Sum: 200, Average: 40.0', 'text-emerald-400 font-mono text-xs');
-            }, 2000);
+                const data = await response.json();
+                
+                // Remove loading indicator log
+                const loadingElement = document.getElementById(loadingId);
+                if (loadingElement) loadingElement.remove();
 
-            setTimeout(() => {
-                appendMessage('agent', 'Final Answer', 'Based on the tool observation, the metrics for your numbers are:\n• Count: 5\n• Sum: 200\n• Average: 40.0');
-            }, 2800);
+                if (response.ok) {
+                    appendMessage('agent', 'Final Answer', data.output || 'Task completed successfully.');
+                } else {
+                    appendMessage('agent', 'Error', 'Server error encountered while processing goal.');
+                }
+            } catch (error) {
+                const loadingElement = document.getElementById(loadingId);
+                if (loadingElement) loadingElement.remove();
+                
+                appendMessage('agent', 'Connection Error', 'Could not connect to FastAPI server at http://127.0.0.1:8000. Make sure uvicorn is running.');
+            }
         });
 
         function appendMessage(sender, title, text) {
@@ -154,8 +168,9 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        function appendLog(text, className) {
+        function appendLog(text, className, id = '') {
             const logDiv = document.createElement('div');
+            if (id) logDiv.id = id;
             logDiv.className = `bg-slate-900/80 border border-slate-800/60 rounded-lg p-2.5 max-w-2xl ml-11 ${className}`;
             logDiv.textContent = text;
             container.appendChild(logDiv);
