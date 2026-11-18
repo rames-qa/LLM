@@ -23,3 +23,8 @@ def run_agent(request: GoalRequest):
     agent = AgentOrchestrator(system_prompt="You are an autonomous automation assistant.")
     result = agent.run(user_goal=request.goal)
     return {"output": result}
+
+# --- CRITICAL: Add this block so python server.py runs successfully ---
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
