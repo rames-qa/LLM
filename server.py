@@ -24,7 +24,11 @@ def run_agent(request: GoalRequest):
     result = agent.run(user_goal=request.goal)
     return {"output": result}
 
-# --- Update the bottom block of server.py ---
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=False)
+    import sys
+    try:
+        print("--- STARTING UVICORN SERVER MANUALLY ---")
+        uvicorn.run(app, host="127.0.0.1", port=8000)
+    except Exception as e:
+        print(f"Server crashed with error: {e}")
