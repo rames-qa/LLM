@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM Automation Framework Console</title>
-    <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans antialiased h-screen flex flex-col">
@@ -19,12 +17,15 @@
             </div>
             <div>
                 <h1 class="font-bold text-lg tracking-wide">LLM Automation Framework</h1>
-                <p class="text-xs text-slate-400">Micro-Agent ReAct Execution Console</p>
+                <p class="text-xs text-slate-400">Streaming ReAct Agent Console</p>
             </div>
         </div>
         <div class="flex items-center space-x-3">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">
-                <span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Local Engine Ready
+            <button id="reset-btn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                <i class="fa-solid fa-rotate-right mr-1"></i> New Session
+            </button>
+            <span id="engine-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">
+                <span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Connecting...
             </span>
         </div>
     </header>
@@ -32,49 +33,37 @@
     <!-- Main Content Grid -->
     <div class="flex-1 flex overflow-hidden">
         
-        <!-- Left Panel: Tool Registry & Config -->
+        <!-- Left Panel: Dynamically Populated Tool Registry -->
         <aside class="w-80 bg-slate-900/50 border-r border-slate-800 p-4 hidden md:flex flex-col space-y-6 overflow-y-auto">
             <div>
-                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Registered Tools</h3>
-                <div class="space-y-2">
-                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-start space-x-3">
-                        <i class="fa-solid fa-calculator text-indigo-400 mt-1"></i>
-                        <div>
-                            <p class="text-sm font-medium text-slate-200">calculate_metrics</p>
-                            <p class="text-xs text-slate-400">Computes count, sum, and average of numbers.</p>
-                        </div>
-                    </div>
-                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-start space-x-3">
-                        <i class="fa-solid fa-file-lines text-indigo-400 mt-1"></i>
-                        <div>
-                            <p class="text-sm font-medium text-slate-200">read_text_file</p>
-                            <p class="text-xs text-slate-400">Reads contents from local paths.</p>
-                        </div>
-                    </div>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registered Tools</h3>
+                    <span id="tool-count" class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="tools-list" class="space-y-2">
+                    <p class="text-xs text-slate-500 italic">Loading tools from backend...</p>
                 </div>
             </div>
 
             <div class="bg-indigo-950/30 border border-indigo-900/50 rounded-xl p-4">
-                <h4 class="text-sm font-semibold text-indigo-300 mb-1"><i class="fa-solid fa-info-circle mr-1.5"></i> ReAct Loop</h4>
+                <h4 class="text-sm font-semibold text-indigo-300 mb-1"><i class="fa-solid fa-link mr-1.5"></i> Multi-Step Chaining</h4>
                 <p class="text-xs text-slate-300 leading-relaxed">
-                    The agent processes your objective iteratively: <span class="text-indigo-400 font-mono">Thought</span> &rarr; <span class="text-indigo-400 font-mono">Action</span> &rarr; <span class="text-indigo-400 font-mono">Observation</span>.
+                    Try chaining tools in one prompt:<br>
+                    <span class="text-indigo-300 italic">"Calculate metrics for 12, 45, 78, 90 and save a summary report to summary.txt"</span>
                 </p>
             </div>
         </aside>
 
-        <!-- Center Panel: Chat & Execution Log -->
+        <!-- Center Panel: Chat & Live Execution Trace -->
         <main class="flex-1 flex flex-col bg-slate-950 relative">
-            
-            <!-- Message Stream Area -->
             <div id="chat-container" class="flex-1 p-6 overflow-y-auto space-y-4">
-                <!-- Initial Welcome Bubble -->
                 <div class="flex items-start space-x-3">
                     <div class="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center shrink-0">
                         <i class="fa-solid fa-robot text-sm"></i>
                     </div>
                     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 max-w-2xl text-sm leading-relaxed">
                         <p class="font-medium text-indigo-400 mb-1">System Orchestrator</p>
-                        <p class="text-slate-300">Framework initialized successfully. Enter a goal below (e.g., <span class="italic text-slate-400">"Calculate the metrics for these numbers: 10, 25, 40, 55, 70"</span>) to trigger the agent loop.</p>
+                        <p class="text-slate-300">Connected to ReAct engine with persistent session memory. Enter a goal below to watch the agent reason and invoke tools in real time.</p>
                     </div>
                 </div>
             </div>
@@ -85,97 +74,175 @@
                     <input 
                         type="text" 
                         id="user-goal" 
-                        placeholder="Enter automation goal or task..." 
+                        placeholder="Enter multi-step automation goal..." 
                         class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 placeholder-slate-500"
                         autocomplete="off"
                         required
                     >
                     <button 
                         type="submit" 
-                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl text-sm font-medium transition flex items-center space-x-2 shrink-0">
-                        <span>Execute Goal</span>
+                        id="submit-btn"
+                        class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-6 py-3 rounded-xl text-sm font-medium transition flex items-center space-x-2 shrink-0">
+                        <span>Execute</span>
                         <i class="fa-solid fa-paper-plane text-xs"></i>
                     </button>
                 </form>
             </div>
-
         </main>
     </div>
 
-    <!-- Script to Handle Simulation / Interaction -->
 <script>
-        const form = document.getElementById('goal-form');
-        const input = document.getElementById('user-goal');
-        const container = document.getElementById('chat-container');
+    const API_BASE = 'http://127.0.0.1:8000';
+    let sessionId = 'session-' + Math.random().toString(36).substring(2, 9);
 
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const goalText = input.value.trim();
-            if (!goalText) return;
+    const form = document.getElementById('goal-form');
+    const input = document.getElementById('user-goal');
+    const submitBtn = document.getElementById('submit-btn');
+    const container = document.getElementById('chat-container');
+    const toolsList = document.getElementById('tools-list');
+    const toolCount = document.getElementById('tool-count');
+    const engineStatus = document.getElementById('engine-status');
 
-            // Append User Goal Bubble
-            appendMessage('user', 'User Goal', goalText);
-            input.value = '';
+    // 1. Dynamically fetch registered tools from Python backend
+    async function loadTools() {
+        try {
+            const res = await fetch(`${API_BASE}/tools`);
+            const data = await res.json();
+            toolsList.innerHTML = '';
+            toolCount.textContent = data.tools.length;
 
-            // Loading / Thinking indicator
-            const loadingId = 'loading-' + Date.now();
-            appendLog('Agent is thinking and executing tool loop...', 'text-indigo-400 font-mono text-xs', loadingId);
+            data.tools.forEach(tool => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-start space-x-3';
+                card.innerHTML = `
+                    <i class="fa-solid ${tool.icon} text-indigo-400 mt-1"></i>
+                    <div>
+                        <p class="text-sm font-medium text-slate-200 font-mono">${tool.name}</p>
+                        <p class="text-xs text-slate-400 mt-0.5">${tool.description}</p>
+                    </div>
+                `;
+                toolsList.appendChild(card);
+            });
 
-            try {
-                // Call your FastAPI backend endpoint
-                const response = await fetch('http://127.0.0.1:8000/run-agent', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ goal: goalText })
-                });
+            engineStatus.innerHTML = `<span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Engine Ready`;
+        } catch (err) {
+            engineStatus.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-rose-950 text-rose-400 border border-rose-800';
+            engineStatus.innerHTML = `<span class="w-2 h-2 mr-1.5 bg-rose-500 rounded-full"></span> Backend Offline`;
+        }
+    }
 
-                const data = await response.json();
-                
-                // Remove loading indicator log
-                const loadingElement = document.getElementById(loadingId);
-                if (loadingElement) loadingElement.remove();
+    // 2. Reset session memory
+    document.getElementById('reset-btn').addEventListener('click', async () => {
+        await fetch(`${API_BASE}/reset/${sessionId}`, { method: 'POST' });
+        sessionId = 'session-' + Math.random().toString(36).substring(2, 9);
+        container.innerHTML = '';
+        appendMessage('agent', 'System Orchestrator', 'Session memory cleared. Ready for a new task.');
+    });
 
-                if (response.ok) {
-                    appendMessage('agent', 'Final Answer', data.output || 'Task completed successfully.');
-                } else {
-                    appendMessage('agent', 'Error', 'Server error encountered while processing goal.');
+    // 3. Stream ReAct execution steps
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const goalText = input.value.trim();
+        if (!goalText) return;
+
+        appendMessage('user', 'User Goal', goalText);
+        input.value = '';
+        input.disabled = true;
+        submitBtn.disabled = true;
+
+        // Create live trace container for this turn
+        const traceContainer = document.createElement('div');
+        traceContainer.className = 'ml-11 space-y-2 max-w-2xl';
+        container.appendChild(traceContainer);
+
+        const statusBadge = document.createElement('div');
+        statusBadge.className = 'text-xs font-mono text-indigo-400 flex items-center space-x-2';
+        statusBadge.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i><span>Initializing reasoning loop...</span>`;
+        traceContainer.appendChild(statusBadge);
+
+        try {
+            const response = await fetch(`${API_BASE}/run-agent-stream`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ goal: goalText, session_id: sessionId })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop();
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const event = JSON.parse(line.slice(6));
+
+                    if (event.type === 'thinking') {
+                        statusBadge.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i><span>${event.content}</span>`;
+                    } else if (event.type === 'tool_call') {
+                        appendTraceStep(traceContainer, statusBadge, 'Action', event.tool, JSON.stringify(event.args, null, 2), 'amber');
+                    } else if (event.type === 'tool_result') {
+                        appendTraceStep(traceContainer, statusBadge, 'Observation', event.tool, event.output, 'emerald');
+                    } else if (event.type === 'final') {
+                        statusBadge.remove();
+                        appendMessage('agent', 'Final Answer', event.content);
+                    } else if (event.type === 'error') {
+                        statusBadge.remove();
+                        appendMessage('agent', 'Error', event.content);
+                    }
+                    container.scrollTop = container.scrollHeight;
                 }
-            } catch (error) {
-                const loadingElement = document.getElementById(loadingId);
-                if (loadingElement) loadingElement.remove();
-                
-                appendMessage('agent', 'Connection Error', 'Could not connect to FastAPI server at http://127.0.0.1:8000. Make sure uvicorn is running.');
             }
-        });
-
-        function appendMessage(sender, title, text) {
-            const isUser = sender === 'user';
-            const wrapper = document.createElement('div');
-            wrapper.className = `flex items-start space-x-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
-            
-            wrapper.innerHTML = `
-                <div class="${isUser ? 'bg-emerald-600' : 'bg-indigo-600'} text-white w-8 h-8 rounded-full flex items-center justify-center shrink-0">
-                    <i class="fa-solid ${isUser ? 'fa-user' : 'fa-robot'} text-sm"></i>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 max-w-2xl text-sm leading-relaxed">
-                    <p class="font-medium ${isUser ? 'text-emerald-400' : 'text-indigo-400'} mb-1">${title}</p>
-                    <p class="text-slate-300 whitespace-pre-line">${text}</p>
-                </div>
-            `;
-            container.appendChild(wrapper);
-            container.scrollTop = container.scrollHeight;
+        } catch (err) {
+            statusBadge.remove();
+            appendMessage('agent', 'Connection Error', 'Failed to stream from FastAPI server at http://127.0.0.1:8000.');
+        } finally {
+            input.disabled = false;
+            submitBtn.disabled = false;
+            input.focus();
         }
+    });
 
-        function appendLog(text, className, id = '') {
-            const logDiv = document.createElement('div');
-            if (id) logDiv.id = id;
-            logDiv.className = `bg-slate-900/80 border border-slate-800/60 rounded-lg p-2.5 max-w-2xl ml-11 ${className}`;
-            logDiv.textContent = text;
-            container.appendChild(logDiv);
-            container.scrollTop = container.scrollHeight;
-        }
-    </script>
+    function appendTraceStep(parent, beforeNode, label, toolName, payload, color) {
+        const card = document.createElement('div');
+        card.className = `bg-slate-900/90 border border-${color}-900/50 rounded-lg p-3 text-xs font-mono`;
+        card.innerHTML = `
+            <div class="flex items-center justify-between text-${color}-400 mb-1">
+                <span><i class="fa-solid ${label === 'Action' ? 'fa-bolt' : 'fa-eye'} mr-1.5"></i>${label}: <strong>${toolName}</strong></span>
+            </div>
+            <pre class="text-slate-300 bg-slate-950 p-2 rounded overflow-x-auto whitespace-pre-wrap">${escapeHtml(payload)}</pre>
+        `;
+        parent.insertBefore(card, beforeNode);
+    }
+
+    function appendMessage(sender, title, text) {
+        const isUser = sender === 'user';
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex items-start space-x-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
+        wrapper.innerHTML = `
+            <div class="${isUser ? 'bg-emerald-600' : 'bg-indigo-600'} text-white w-8 h-8 rounded-full flex items-center justify-center shrink-0">
+                <i class="fa-solid ${isUser ? 'fa-user' : 'fa-robot'} text-sm"></i>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 max-w-2xl text-sm leading-relaxed">
+                <p class="font-medium ${isUser ? 'text-emerald-400' : 'text-indigo-400'} mb-1">${title}</p>
+                <div class="text-slate-300 whitespace-pre-line">${escapeHtml(text)}</div>
+            </div>
+        `;
+        container.appendChild(wrapper);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    loadTools();
+</script>
 </body>
 </html>
