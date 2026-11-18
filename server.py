@@ -20,8 +20,9 @@ class GoalRequest(BaseModel):
 
 @app.post("/run-agent")
 def run_agent(request: GoalRequest):
-    agent = AgentOrchestrator(system_prompt="You are an autonomous automation assistant.")
-    result = agent.run(user_goal=request.goal)
+    agent = AgentOrchestrator()
+    # Matches the .run() method we defined in orchestrator.py
+    result = agent.run(user_goal=request.goal) 
     return {"output": result}
 
 if __name__ == "__main__":
